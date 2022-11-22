@@ -164,6 +164,91 @@ void AES_Dec_ECB(const char* pCT, byte key[16], const char* pPT) {
     fout.close();
 }
 
+void AES_Dec_CBC(const char* pCT, byte key[16], const char* pPT) {
+    ifstream fin;
+    ofstream fout;
+
+    char ch;
+
+    fin.open(pCT, ios::binary);
+    if (fin.fail()) {
+        cout << "Input file open error!" << endl;
+        return;
+    }
+    fout.open(pPT, ios::binary);
+    if (fout.fail()) {
+        cout << "Output file open error!" << endl;
+        return;
+    }
+
+    //파일의 크기 알아보기
+    int file_size;
+    fin.seekg(0, fin.end); //파일포인터를 맨 뒤로
+    file_size = fin.tellg(); //현재 파일 포인터의 위치를 말하면
+    cout << "Input File Size =" << file_size << endl;
+    fin.seekg(0, fin.beg); //파일포인터를 맨 앞으로
+
+
+    int num_block, remainder;
+    num_block = file_size / 16; // 암호화된 블록의 개수
+    remainder = file_size - num_block * 16;
+    if (remainder != 0) {
+        cout << "File size Error (Not a multiple of 16)" << endl;
+        return;
+    }
+
+
+    byte pt[16], ct[16];
+    u32 rk[11][4];
+    byte iv[16] = { 0x72, 0x10, 0x84, 0x11, 0x2, 0x1e, 0x1, 0x5b, 0x3b, 0x4d, 0x61, 0x3, 0x42, 0xd8, 0x1a, 0x59};
+    AES32_Dec_KeySchedule(key, rk);
+    //CBC ㄱㄱ
+    
+    for (int i = 0; i < num_block - 1; i++) {
+       
+            fin.read((char*)ct, 16);
+            for (int j = 0; j < 16; j++) {
+                printf("%hhx ", key[j]);
+            }
+            printf("\n");
+            AES32_EqDecrypt(ct, rk, pt);//암호화
+            for (int j = 0; j < 16; j++) {
+                printf("%hhx ", ct[j]);
+            }
+            printf("\n");
+            printf("\n");
+            
+            for (int j = 0; j < 16; j++) {
+                pt[j] ^= iv[j];
+            }
+            for (int j = 0; j < 16; j++) {
+                iv[j] = ct[j];
+            }
+            
+            fout.write((char*)pt, 16);
+ 
+    }
+
+    //마지막 블록
+    int last_pt_len; //마지막 블록의 실제 데이터 길이 (0~15)
+    fin.read((char*)ct, 16);
+    AES32_EqDecrypt(ct, rk, pt);
+    last_pt_len = pt_length(pt);
+    if (last_pt_len < 0) {
+        return;
+    }
+
+    byte pt_pad[16];
+    for (int i = 0; i < last_pt_len; i++) {
+        ch = pt[i];
+        fout.write(&ch, 1);
+
+    }
+
+    fin.close();
+    fout.close();
+}
+
 void File_ECB_test() {
     const char* pPT = "PT.bin";
     const char* pCT = "CT.bin";
